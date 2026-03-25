@@ -3,3 +3,4 @@ channels:
   - snowflake
 dependencies:
   - pandas=2.*
+  - faker 
