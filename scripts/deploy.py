@@ -71,9 +71,9 @@ def deploy_app(app_dir: Path):
     print(f"  Deploying: {app_name}  ({runtime} runtime)")
     print(f"{'='*60}")
 
-    # 1. Ensure database/schema exist (optional guard)
-    run_sql(f"CREATE DATABASE IF NOT EXISTS {db}", f"Ensure DB {db}")
-    run_sql(f"CREATE SCHEMA IF NOT EXISTS {db}.{schema}", f"Ensure schema {schema}")
+    # # 1. Ensure database/schema exist (optional guard)
+    # run_sql(f"CREATE DATABASE IF NOT EXISTS {db}", f"Ensure DB {db}")
+    # run_sql(f"CREATE SCHEMA IF NOT EXISTS {db}.{schema}", f"Ensure schema {schema}")
 
     # 2. Create or replace the stage
     run_sql(
