@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - master
-    paths:
-      - 'apps/**'           # only trigger when app code changes
+          # only trigger when app code changes
 
   workflow_dispatch:        # allow manual trigger from GitHub UI
     inputs:
