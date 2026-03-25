@@ -16,8 +16,47 @@ env:
   PYTHON_VERSION: '3.12'
 
 jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      apps_to_deploy: ${{ steps.detect.outputs.apps_to_deploy }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2        # need previous commit to diff
+
+      - name: Detect changed apps
+        id: detect
+        run: |
+
+          # ── Manual trigger: user explicitly passed app names ──
+          if [ -n "${{ github.event.inputs.apps }}" ]; then
+            echo "Manual trigger — deploying: ${{ github.event.inputs.apps }}"
+            echo "apps_to_deploy=${{ github.event.inputs.apps }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # ── Push trigger: detect which apps/ subfolders changed ──
+          CHANGED=$(git diff --name-only HEAD~1 HEAD \
+            | grep '^apps/' \
+            | awk -F'/' '{print $2}' \
+            | sort -u \
+            | tr '\n' ' ' \
+            | xargs)   # trims leading/trailing whitespace
+
+          if [ -z "$CHANGED" ]; then
+            echo "No app changes detected — skipping deploy."
+          else
+            echo "Changed apps detected: $CHANGED"
+          fi
+
+          echo "apps_to_deploy=$CHANGED" >> $GITHUB_OUTPUT
+
   deploy:
     runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.apps_to_deploy != ''
 
     steps:
       - uses: actions/checkout@v4
@@ -32,16 +71,10 @@ jobs:
           pip install --upgrade pip
           pip install snowflake-connector-python
 
-      - name: Deploy Streamlit apps via SQL
+      - name: Deploy changed apps via SQL
         env:
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
         run: |
-          APPS="${{ github.event.inputs.apps }}"
-
-          if [ -z "$APPS" ]; then
-            echo "Deploying ALL apps..."
-            python scripts/deploy.py
-          else
-            echo "Deploying apps: $APPS"
-            python scripts/deploy.py $APPS
-          fi
+          APPS="${{ needs.detect.outputs.apps_to_deploy }}"
+          echo "Deploying: $APPS"
+          python scripts/deploy.py $APPS
