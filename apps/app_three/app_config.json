@@ -1,12 +1,11 @@
-
 {
-  "app_name": "APP_THREE",
+  "app_name": "APP_ONE",
   "database": "STREAMLIT_APP",
   "schema": "STREAMLIT_APP_POC",
-  "stage": "APP_THREE_STAGE",
+  "stage": "APP_ONE_STAGE",
   "main_file": "streamlit_app.py",
   "query_warehouse": "COMPUTE_WH",
-  "runtime": "warehouse"
-
-
+  "runtime": "container",
+  "runtime_name": "SYSTEM$ST_CONTAINER_RUNTIME_PY3_11",
+  "compute_pool": "YOUR_COMPUTE_POOL_NAME"
 }
