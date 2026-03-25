@@ -72,11 +72,10 @@ try:
 
     df_customers = conn.query("""
         SELECT * FROM ANALYTICS.ANALYTICS.DIM_CUSTOMERS
-        LIMIT 100
     """)
     st.success("Query successful — SYSADMIN has access to DIM_CUSTOMERS")
     st.dataframe(df_customers)
 
 except Exception as e:
     st.error(f"Query failed — {str(e)}")
-    st.warning("Possible reasons: SYSADMIN not granted to DEPLOY_ROLE, or SYSADMIN has no access to ANALYTICS DB")
+    
