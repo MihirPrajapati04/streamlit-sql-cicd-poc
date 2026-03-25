@@ -1,0 +1,5 @@
+name: app_one
+channels:
+  - snowflake
+dependencies:
+  - pandas=2.*
