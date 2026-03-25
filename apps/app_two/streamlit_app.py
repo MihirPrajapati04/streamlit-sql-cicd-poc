@@ -57,9 +57,7 @@ st.divider()
 st.subheader("ANALYTICS.ANALYTICS.DIM_CUSTOMERS — via SYSADMIN")
 
 try:
-    session = conn.session()
-    session.use_role("SYSADMIN")
-    session.use_warehouse("COMPUTE_WH")
+  
 
     st.subheader("Current Session Context — After Role Switch")
     context_after = conn.query("""
