@@ -111,10 +111,16 @@ def deploy_app(app_dir: Path):
 
     run_sql(create_sql, f"CREATE OR REPLACE STREAMLIT {app_name}")
 
-    # 5. Push code to LIVE VERSION (required for USAGE-privilege users)
+    # 4. Publish LIVE VERSION
     run_sql(
         f"ALTER STREAMLIT {db}.{schema}.{app_name} ADD LIVE VERSION FROM LAST",
         f"Publish LIVE VERSION for {app_name}"
+    )
+
+    # 5. Grant usage to end users automatically after every deploy
+    run_sql(
+        f"GRANT USAGE ON STREAMLIT {db}.{schema}.{app_name} TO ROLE PUBLIC",
+        f"Grant USAGE on {app_name} to PUBLIC"
     )
 
     print(f"\n  ✅ {app_name} deployed successfully!\n")
