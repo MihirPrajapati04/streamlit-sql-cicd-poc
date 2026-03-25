@@ -3,7 +3,7 @@ name: Deploy Streamlit Apps to Snowflake (SQL)
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - 'apps/**'           # only trigger when app code changes
 
