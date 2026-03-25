@@ -1,0 +1,5 @@
+name: app_two
+channels:
+  - snowflake
+dependencies:
+  - streamlit=1.35.0

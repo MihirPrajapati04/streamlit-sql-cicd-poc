@@ -4,16 +4,13 @@ import sys
 import snowflake.connector
 from pathlib import Path
 
-# ── Load global Snowflake connection config ──────────────────────────────────
-with open("snowflake_config.json") as f:
-    sf_config = json.load(f)
-
+# ── Load Snowflake connection config from GitHub Secrets ─────────────────────
 conn = snowflake.connector.connect(
-    account=sf_config["account"],
-    user=sf_config["user"],
-    password=os.environ["SNOWFLAKE_PASSWORD"],   # injected from GitHub Secret
-    role=sf_config["role"],
-    warehouse=sf_config["warehouse"],
+    account   = os.environ["SNOWFLAKE_ACCOUNT"],
+    user      = os.environ["SNOWFLAKE_USER"],
+    password  = os.environ["SNOWFLAKE_PASSWORD"],
+    role      = os.environ["SNOWFLAKE_ROLE"],
+    warehouse = os.environ["SNOWFLAKE_WAREHOUSE"],
 )
 cursor = conn.cursor()
 
@@ -31,10 +28,7 @@ def run_sql(sql: str, description: str = ""):
 
 
 def upload_file_to_stage(local_path: str, stage_path: str):
-    """
-    Upload a single file to a Snowflake stage using PUT over SQL.
-    """
-    # PUT requires a file:// URI
+    """Upload a single file to a Snowflake stage using PUT over SQL."""
     abs_path = Path(local_path).resolve()
     put_sql = f"""
         PUT file://{abs_path} {stage_path}
@@ -64,21 +58,23 @@ def deploy_app(app_dir: Path):
     app_name    = cfg["app_name"]
     main_file   = cfg["main_file"]
     warehouse   = cfg["query_warehouse"]
-    runtime     = cfg.get("runtime", "warehouse")   # "warehouse" or "container"
+    runtime     = cfg.get("runtime", "warehouse")
     stage_ref   = f"@{db}.{schema}.{stage}/app"
 
     print(f"\n{'='*60}")
     print(f"  Deploying: {app_name}  ({runtime} runtime)")
     print(f"{'='*60}")
 
-    # # 1. Ensure database/schema exist (optional guard)
-    # run_sql(f"CREATE DATABASE IF NOT EXISTS {db}", f"Ensure DB {db}")
-    # run_sql(f"CREATE SCHEMA IF NOT EXISTS {db}.{schema}", f"Ensure schema {schema}")
-
-    # 2. Create or replace the stage
+    # 1. Create stage if not exists
     run_sql(
         f"CREATE STAGE IF NOT EXISTS {db}.{schema}.{stage}",
         f"Ensure stage {stage}"
+    )
+
+    # 2. Grant stage access to deploy role
+    run_sql(
+        f"GRANT READ, WRITE ON STAGE {db}.{schema}.{stage} TO ROLE {os.environ['SNOWFLAKE_ROLE']}",
+        f"Grant READ, WRITE on stage {stage}"
     )
 
     # 3. Upload all app files to the stage
@@ -89,10 +85,10 @@ def deploy_app(app_dir: Path):
     for file_path in app_files:
         upload_file_to_stage(str(file_path), stage_ref)
 
-    # 4. CREATE OR REPLACE the STREAMLIT object using SQL
+    # 4. CREATE OR REPLACE the STREAMLIT object
     if runtime == "container":
-        runtime_name  = cfg["runtime_name"]
-        compute_pool  = cfg["compute_pool"]
+        runtime_name = cfg["runtime_name"]
+        compute_pool = cfg["compute_pool"]
         create_sql = f"""
             CREATE OR REPLACE STREAMLIT {db}.{schema}.{app_name}
                 FROM '{stage_ref}'
@@ -111,13 +107,13 @@ def deploy_app(app_dir: Path):
 
     run_sql(create_sql, f"CREATE OR REPLACE STREAMLIT {app_name}")
 
-    # 4. Publish LIVE VERSION
+    # 5. Publish LIVE VERSION
     run_sql(
         f"ALTER STREAMLIT {db}.{schema}.{app_name} ADD LIVE VERSION FROM LAST",
         f"Publish LIVE VERSION for {app_name}"
     )
 
-    # 5. Grant usage to end users automatically after every deploy
+    # 6. Grant usage to end users
     run_sql(
         f"GRANT USAGE ON STREAMLIT {db}.{schema}.{app_name} TO ROLE PUBLIC",
         f"Grant USAGE on {app_name} to PUBLIC"
@@ -128,12 +124,8 @@ def deploy_app(app_dir: Path):
 
 # ── Entrypoint ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    apps_root = Path("apps")
-
-    # Optional: deploy only specific apps passed as CLI args
-    # e.g. python scripts/deploy.py app_one app_three
+    apps_root   = Path("apps")
     target_apps = sys.argv[1:] if len(sys.argv) > 1 else None
-
     deployed, failed = [], []
 
     for app_dir in sorted(apps_root.iterdir()):
@@ -141,7 +133,6 @@ if __name__ == "__main__":
             continue
         if target_apps and app_dir.name not in target_apps:
             continue
-
         try:
             deploy_app(app_dir)
             deployed.append(app_dir.name)
@@ -158,4 +149,4 @@ if __name__ == "__main__":
     print("="*60)
 
     if failed:
-        sys.exit(1)   # Fail the CI job if any app failed
+        sys.exit(1)

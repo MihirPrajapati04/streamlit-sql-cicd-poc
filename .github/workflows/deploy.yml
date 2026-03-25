@@ -24,26 +24,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2        # need previous commit to diff
+          fetch-depth: 2
 
       - name: Detect changed apps
         id: detect
         run: |
-
-          # ── Manual trigger: user explicitly passed app names ──
           if [ -n "${{ github.event.inputs.apps }}" ]; then
             echo "Manual trigger — deploying: ${{ github.event.inputs.apps }}"
             echo "apps_to_deploy=${{ github.event.inputs.apps }}" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # ── Push trigger: detect which apps/ subfolders changed ──
           CHANGED=$(git diff --name-only HEAD~1 HEAD \
             | grep '^apps/' \
             | awk -F'/' '{print $2}' \
             | sort -u \
             | tr '\n' ' ' \
-            | xargs)   # trims leading/trailing whitespace
+            | xargs)
 
           if [ -z "$CHANGED" ]; then
             echo "No app changes detected — skipping deploy."
@@ -73,7 +70,11 @@ jobs:
 
       - name: Deploy changed apps via SQL
         env:
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ACCOUNT:    ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER:       ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD:   ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ROLE:       ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE:  ${{ secrets.SNOWFLAKE_WAREHOUSE }}
         run: |
           APPS="${{ needs.detect.outputs.apps_to_deploy }}"
           echo "Deploying: $APPS"
