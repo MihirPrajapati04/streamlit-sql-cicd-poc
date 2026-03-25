@@ -7,5 +7,5 @@
   "query_warehouse": "COMPUTE_WH",
   "runtime": "container",
   "runtime_name": "SYSTEM$ST_CONTAINER_RUNTIME_PY3_11",
-  "compute_pool": "YOUR_COMPUTE_POOL_NAME"
+  "compute_pool": "STREAMLIT_COMPUTE_POOL"
 }
