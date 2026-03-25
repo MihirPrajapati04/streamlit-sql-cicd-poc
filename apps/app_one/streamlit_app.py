@@ -1,8 +1,10 @@
-# apps/app_one/streamlit_app.py
-
-
 import streamlit as st
+from faker import Faker
 
-st.title("App One")
-st.write("Successfully deployed via CI/CD!")
-st.write("This app uses the WAREHOUSE runtime. Check out app_two for an example of CONTAINER runtime.")
+fake = Faker()
+
+st.title("App Two — pyproject.toml Test")
+
+if st.button("Generate Fake Company"):
+    st.write(fake.company())
+    st.write(fake.catch_phrase())

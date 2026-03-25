@@ -1,0 +1,6 @@
+[project]
+name = "app_two"
+version = "0.1.0"
+dependencies = [
+    "faker"
+]

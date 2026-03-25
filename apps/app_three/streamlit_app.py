@@ -1,6 +1,11 @@
-# apps/app_three/streamlit_app.py
 import streamlit as st
+from faker import Faker
 
-st.title("App Three")
-st.write("Successfully deployed via CI/CD!")
-st.write("This app uses the WAREHOUSE runtime. Check out app_one for an example of WAREHOUSE runtime.")
+fake = Faker()
+
+st.title("App One — requirements.txt Test")
+
+if st.button("Generate Fake Name"):
+    st.write(fake.name())
+    st.write(fake.address())
+    st.write(fake.email())
