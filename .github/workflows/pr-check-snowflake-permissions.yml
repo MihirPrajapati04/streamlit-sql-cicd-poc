@@ -3,7 +3,8 @@ name: Snowflake Permissions
 on:
   pull_request:
     branches:
-      - master
+      - uat
+      - main
 
 env:
   PYTHON_VERSION: '3.12'

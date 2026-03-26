@@ -1,16 +1,22 @@
-name: Snowflake Infrastructure
+name: Deploy to PROD
 
 on:
-  pull_request:
-    branches:
-      - uat
-      - main
+  push:
+    tags:
+      - 'v*.*.*'       # triggers on tags like v1.0.0, v2.1.3
+
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: 'App folder names to deploy (blank = all)'
+        required: false
+        default: ''
 
 env:
   PYTHON_VERSION: '3.12'
 
 jobs:
-  snowflake-infrastructure:
+  deploy-prod:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,11 +31,20 @@ jobs:
           pip install --upgrade pip
           pip install snowflake-connector-python
 
-      - name: Run Snowflake infrastructure checks
+      - name: Deploy to PROD
         env:
+          SNOWFLAKE_ENV:       prod
           SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD:  ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_ROLE:      ${{ secrets.SNOWFLAKE_ROLE }}
           SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-        run: python scripts/checks/run_snowflake_infra.py
+        run: |
+          APPS="${{ github.event.inputs.apps }}"
+          if [ -z "$APPS" ]; then
+            echo "Deploying ALL apps to PROD — tag: ${{ github.ref_name }}"
+            python scripts/deploy.py
+          else
+            echo "Deploying apps to PROD: $APPS"
+            python scripts/deploy.py $APPS
+          fi
