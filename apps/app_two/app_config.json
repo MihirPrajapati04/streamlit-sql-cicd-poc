@@ -1,12 +1,13 @@
-
 {
   "app_name": "APP_TWO",
-  "database": "STREAMLIT_APP",
   "schema": "STREAMLIT_APP_POC",
   "stage": "APP_TWO_STAGE",
   "main_file": "streamlit_app.py",
   "query_warehouse": "COMPUTE_WH",
-  "runtime": "warehouse"
-
-
+  "runtime": "warehouse",
+  "databases": {
+    "dev":  "DEV_STREAMLIT_APP",
+    "uat":  "QA_STREAMLIT_APP",
+    "prod": "PROD_STREAMLIT_APP"
+  }
 }

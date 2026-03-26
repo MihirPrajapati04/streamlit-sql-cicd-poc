@@ -1,7 +1,7 @@
 {
-  "app_name": "APP_ONE",
+  "app_name": "APP_THREE",
   "schema": "STREAMLIT_APP_POC",
-  "stage": "APP_ONE_STAGE",
+  "stage": "APP_THREE_STAGE",
   "main_file": "streamlit_app.py",
   "query_warehouse": "COMPUTE_WH",
   "runtime": "container",
