@@ -10,9 +10,11 @@ from check_snowflake_infra import (
     check_warehouse, check_stage, check_compute_pool
 )
 
-apps_root = Path("apps")
-errors    = []
-warnings  = []
+apps_root   = Path("apps")
+errors      = []
+warnings    = []
+DATABASE    = os.environ["SNOWFLAKE_DB"]
+ENVIRONMENT = os.environ.get("SNOWFLAKE_ENV", "dev").upper()
 
 
 def get_cursor():
@@ -27,7 +29,8 @@ def get_cursor():
 
 
 print("\n" + "="*60)
-print("  SNOWFLAKE INFRASTRUCTURE CHECKS")
+print(f"  SNOWFLAKE INFRASTRUCTURE CHECKS — {ENVIRONMENT}")
+print(f"  Database: {DATABASE}")
 print("="*60)
 
 try:
@@ -43,7 +46,7 @@ try:
         with open(config_path) as f:
             cfg = json.load(f)
 
-        db        = cfg["database"]
+        db        = DATABASE
         schema    = cfg["schema"]
         stage     = cfg["stage"]
         warehouse = cfg["query_warehouse"]

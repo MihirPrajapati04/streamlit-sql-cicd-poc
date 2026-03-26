@@ -4,15 +4,17 @@ import sys
 import snowflake.connector
 from pathlib import Path
 
-# ── Environment: dev | uat | prod ────────────────────────────────────────────
+# ── Environment ───────────────────────────────────────────────────────────────
 ENVIRONMENT = os.environ.get("SNOWFLAKE_ENV", "dev").lower()
+DATABASE    = os.environ["SNOWFLAKE_DB"]
 VALID_ENVS  = ["dev", "uat", "prod"]
 
 if ENVIRONMENT not in VALID_ENVS:
     print(f"✗ Invalid SNOWFLAKE_ENV '{ENVIRONMENT}'. Must be one of: {VALID_ENVS}")
     sys.exit(1)
 
-print(f"\n  Environment: {ENVIRONMENT.upper()}")
+print(f"\n  Environment : {ENVIRONMENT.upper()}")
+print(f"  Database    : {DATABASE}")
 
 # ── Snowflake connection ──────────────────────────────────────────────────────
 conn = snowflake.connector.connect(
@@ -58,13 +60,7 @@ def deploy_app(app_dir: Path):
     with open(config_path) as f:
         cfg = json.load(f)
 
-    # ── Resolve database for current environment ──────────────
-    databases = cfg.get("databases", {})
-    db = databases.get(ENVIRONMENT)
-    if not db:
-        print(f"  ⚠ Skipping {app_dir.name} — no database configured for env '{ENVIRONMENT}'")
-        return
-
+    db        = DATABASE
     schema    = cfg["schema"]
     stage     = cfg["stage"]
     app_name  = cfg["app_name"]
@@ -160,6 +156,7 @@ if __name__ == "__main__":
 
     print("\n" + "="*60)
     print(f"  Environment : {ENVIRONMENT.upper()}")
+    print(f"  Database    : {DATABASE}")
     print(f"  ✅ Deployed : {deployed}")
     print(f"  ✗  Failed  : {failed}")
     print("="*60)

@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - uat
-      - master
+      - main
 
 env:
   PYTHON_VERSION: '3.12'
@@ -27,6 +27,8 @@ jobs:
 
       - name: Run Snowflake permission checks
         env:
+          SNOWFLAKE_ENV:       dev
+          SNOWFLAKE_DB:        DEV_STREAMLIT_APP
           SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD:  ${{ secrets.SNOWFLAKE_PASSWORD }}

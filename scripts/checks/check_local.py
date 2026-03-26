@@ -3,7 +3,7 @@ from pathlib import Path
 
 REQUIRED_FILES          = ["streamlit_app.py", "app_config.json"]
 COMMON_REQUIRED_KEYS    = [
-    "app_name", "database", "schema", "stage",
+    "app_name", "schema", "stage",
     "main_file", "query_warehouse", "runtime"
 ]
 CONTAINER_REQUIRED_KEYS = ["runtime_name", "compute_pool"]
