@@ -119,6 +119,13 @@ def deploy_app(app_dir: Path):
         f"Grant USAGE on {app_name} to PUBLIC"
     )
 
+    # 7. grant read to the stage for end users (needed to run the app)
+
+    run_sql(
+        f"GRANT READ ON STAGE {db}.{schema}.{stage} TO ROLE PUBLIC",
+        f"Grant READ on stage {stage} to PUBLIC"
+    )
+
     print(f"\n  ✅ {app_name} deployed successfully!\n")
 
 
