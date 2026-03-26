@@ -1,0 +1,27 @@
+name: Deploy Report
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  deploy-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Report apps that will deploy on merge
+        run: |
+          CHANGED=$(git diff --name-only origin/master HEAD \
+            | grep '^apps/' \
+            | awk -F'/' '{print $2}' \
+            | sort -u \
+            | tr '\n' ' ' \
+            | xargs)
+
+          if [ -z "$CHANGED" ]; then
+            echo "ℹ No app changes detected in this PR"
+          else
+            echo "🚀 Apps that will deploy on merge: $CHANGED"
+          fi

@@ -1,0 +1,23 @@
+name: Local Validation
+
+on:
+  pull_request:
+    branches:
+      - master
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  local-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run local file and config checks
+        run: python scripts/checks/run_local.py

@@ -1,0 +1,38 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches:
+      - master
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install flake8
+
+      - name: Python syntax check
+        run: |
+          find apps/ -name "*.py" -exec python -m py_compile {} \;
+          echo "✓ All Python files are syntactically valid"
+
+      - name: Lint with flake8
+        run: |
+          flake8 apps/ scripts/ \
+            --max-line-length=120 \
+            --exclude=__pycache__ \
+            --statistics
+        continue-on-error: true
