@@ -14,6 +14,11 @@ apps_root = Path("apps")
 errors    = []
 warnings  = []
 
+# ── Determine which environment we are checking ───────────────
+# For PR checks we always validate DEV database
+# since PRs target uat which deploys to DEV
+ENVIRONMENT = os.environ.get("SNOWFLAKE_ENV", "dev").lower()
+
 
 def get_cursor():
     conn = snowflake.connector.connect(
@@ -27,7 +32,7 @@ def get_cursor():
 
 
 print("\n" + "="*60)
-print("  SNOWFLAKE INFRASTRUCTURE CHECKS")
+print(f"  SNOWFLAKE INFRASTRUCTURE CHECKS — {ENVIRONMENT.upper()}")
 print("="*60)
 
 try:
@@ -43,14 +48,25 @@ try:
         with open(config_path) as f:
             cfg = json.load(f)
 
-        db        = cfg["database"]
+        # ── Resolve database for current environment ──────────
+        databases = cfg.get("databases", {})
+        db = databases.get(ENVIRONMENT)
+        if not db:
+            errors.append(
+                f"{app_dir.name}: no database configured for env '{ENVIRONMENT}' "
+                f"in app_config.json"
+            )
+            print(f"\n  [{app_dir.name}]")
+            print(f"      ✗ no database configured for env '{ENVIRONMENT}'")
+            continue
+
         schema    = cfg["schema"]
         stage     = cfg["stage"]
         warehouse = cfg["query_warehouse"]
         runtime   = cfg["runtime"]
         app_name  = app_dir.name
 
-        print(f"\n  [{app_name}]")
+        print(f"\n  [{app_name}] — database: {db}")
 
         db_ok = check_database(cursor, db, app_name, errors, warnings)
         if db_ok:

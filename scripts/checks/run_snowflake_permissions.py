@@ -12,6 +12,9 @@ errors      = []
 warnings    = []
 deploy_role = os.environ["SNOWFLAKE_ROLE"]
 
+# ── Determine which environment we are checking ───────────────
+ENVIRONMENT = os.environ.get("SNOWFLAKE_ENV", "dev").lower()
+
 
 def get_cursor():
     conn = snowflake.connector.connect(
@@ -25,7 +28,7 @@ def get_cursor():
 
 
 print("\n" + "="*60)
-print("  SNOWFLAKE PERMISSION CHECKS")
+print(f"  SNOWFLAKE PERMISSION CHECKS — {ENVIRONMENT.upper()}")
 print("="*60)
 
 try:
@@ -41,12 +44,23 @@ try:
         with open(config_path) as f:
             cfg = json.load(f)
 
-        db        = cfg["database"]
+        # ── Resolve database for current environment ──────────
+        databases = cfg.get("databases", {})
+        db = databases.get(ENVIRONMENT)
+        if not db:
+            errors.append(
+                f"{app_dir.name}: no database configured for env '{ENVIRONMENT}' "
+                f"in app_config.json"
+            )
+            print(f"\n  [{app_dir.name}]")
+            print(f"      ✗ no database configured for env '{ENVIRONMENT}'")
+            continue
+
         schema    = cfg["schema"]
         warehouse = cfg["query_warehouse"]
         app_name  = app_dir.name
 
-        print(f"\n  [{app_name}]")
+        print(f"\n  [{app_name}] — database: {db}")
 
         check_role_permissions(
             cursor, db, schema, warehouse,

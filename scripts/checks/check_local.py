@@ -3,12 +3,13 @@ from pathlib import Path
 
 REQUIRED_FILES          = ["streamlit_app.py", "app_config.json"]
 COMMON_REQUIRED_KEYS    = [
-    "app_name", "database", "schema", "stage",
+    "app_name", "schema", "stage",
     "main_file", "query_warehouse", "runtime"
 ]
 CONTAINER_REQUIRED_KEYS = ["runtime_name", "compute_pool"]
 VALID_RUNTIMES          = ["warehouse", "container"]
 VALID_RUNTIME_NAMES     = ["SYSTEM$ST_CONTAINER_RUNTIME_PY3_11"]
+VALID_ENVS              = ["dev", "uat", "prod"]
 
 
 def validate_local(app_dir: Path, cfg: dict, errors: list, warnings: list):
@@ -34,6 +35,23 @@ def validate_local(app_dir: Path, cfg: dict, errors: list, warnings: list):
             print(f"      ✗ {key} — EMPTY")
         else:
             print(f"      ✓ {key} = {cfg[key]}")
+
+    # ── databases block ───────────────────────────────────────
+    print(f"\n    Databases per environment:")
+    databases = cfg.get("databases", {})
+    if not databases:
+        errors.append(f"{app_name}: app_config.json missing 'databases' block")
+        print(f"      ✗ databases — MISSING")
+    else:
+        for env in VALID_ENVS:
+            if env not in databases:
+                errors.append(f"{app_name}: databases block missing env '{env}'")
+                print(f"      ✗ databases.{env} — MISSING")
+            elif not str(databases[env]).strip():
+                errors.append(f"{app_name}: databases.{env} is empty")
+                print(f"      ✗ databases.{env} — EMPTY")
+            else:
+                print(f"      ✓ databases.{env} = {databases[env]}")
 
     # ── runtime value ─────────────────────────────────────────
     runtime = cfg.get("runtime", "")
