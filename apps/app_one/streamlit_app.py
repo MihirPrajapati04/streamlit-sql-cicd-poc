@@ -11,3 +11,5 @@ st.write("This tests that the deployment process correctly handles pyproject.tom
 if st.button("Generate Fake Company"):
     st.write(fake.company())
     st.write(fake.catch_phrase())
+    st.write(fake.bs())
+    st.write(fake.address())
