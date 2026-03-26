@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 
 st.title("App One — Native Snowflake Connection Test")
+st.write("This app uses the native Snowflake connection in Streamlit. No credentials are needed in the app code — it uses the connection configured in the deployment environment.")
 
 # ── Native connection — no credentials needed ──────────────────
 conn = st.connection("snowflake")
