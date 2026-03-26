@@ -84,10 +84,13 @@ def check_warehouse(cursor, warehouse, app_name, errors, warnings):
             print(f"      ✗ warehouse '{warehouse}' — NOT FOUND")
             return False
         else:
-            # Check warehouse state (index 3 is state in SHOW WAREHOUSES)
-            wh_state = result[0][3]
+            # Get column names to find correct state index
+            col_names = [desc[0].lower() for desc in cursor.description]
+            row = dict(zip(col_names, result[0]))
+            wh_state = row.get("state", "UNKNOWN")
+            wh_size  = row.get("size", "UNKNOWN")
             if wh_state in ("STARTED", "SUSPENDED", "RESIZING"):
-                print(f"      ✓ warehouse '{warehouse}' exists — state: {wh_state}")
+                print(f"      ✓ warehouse '{warehouse}' exists — size: {wh_size}, state: {wh_state}")
             else:
                 warnings.append(
                     f"{app_name}: warehouse '{warehouse}' is in unexpected state '{wh_state}'"
@@ -98,7 +101,6 @@ def check_warehouse(cursor, warehouse, app_name, errors, warnings):
         errors.append(f"{app_name}: error checking warehouse '{warehouse}' — {e}")
         print(f"      ✗ error checking warehouse — {e}")
         return False
-
 
 def check_stage(cursor, db, schema, stage, app_name, errors, warnings):
     print(f"\n    Checking stage '{db}.{schema}.{stage}'...")
@@ -130,10 +132,14 @@ def check_compute_pool(cursor, compute_pool, app_name, errors, warnings):
             print(f"      ✗ compute pool '{compute_pool}' — NOT FOUND")
             return False
         else:
-            # index 4 is state in SHOW COMPUTE POOLS
-            pool_state = result[0][4]
+            # Use column names to find correct state index
+            col_names   = [desc[0].lower() for desc in cursor.description]
+            row         = dict(zip(col_names, result[0]))
+            pool_state  = row.get("state", "UNKNOWN")
+            pool_size   = row.get("instance_family", "UNKNOWN")
+
             if pool_state in ("ACTIVE", "IDLE"):
-                print(f"      ✓ compute pool '{compute_pool}' exists — state: {pool_state}")
+                print(f"      ✓ compute pool '{compute_pool}' exists — size: {pool_size}, state: {pool_state}")
             elif pool_state == "STARTING":
                 warnings.append(
                     f"{app_name}: compute pool '{compute_pool}' is still STARTING — "
@@ -151,8 +157,6 @@ def check_compute_pool(cursor, compute_pool, app_name, errors, warnings):
         errors.append(f"{app_name}: error checking compute pool '{compute_pool}' — {e}")
         print(f"      ✗ error checking compute pool — {e}")
         return False
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 # ROLE / PERMISSION CHECKS
 # ══════════════════════════════════════════════════════════════════════════════
