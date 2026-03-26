@@ -28,7 +28,7 @@ df_agg = conn.query("""
 st.dataframe(df_agg)
 
 st.subheader("Filter by City")
-
+st.write("This dropdown is populated from a Snowflake query, demonstrating dynamic data fetching for UI components.")
 cities = conn.query(
     "SELECT DISTINCT CITY FROM STREAMLIT_APP.STREAMLIT_APP_POC.TEST_EMPLOYEES"
 )
