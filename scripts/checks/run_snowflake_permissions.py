@@ -4,14 +4,16 @@ import os
 from pathlib import Path
 import snowflake.connector
 
+_scripts = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_scripts))
 sys.path.append(str(Path(__file__).parent))
+from config_expand import expand_env_templates
 from check_snowflake_permissions import check_role_permissions
 
 apps_root   = Path("apps")
 errors      = []
 warnings    = []
 deploy_role = os.environ["SNOWFLAKE_ROLE"]
-DATABASE    = os.environ["SNOWFLAKE_DB"]
 ENVIRONMENT = os.environ.get("SNOWFLAKE_ENV", "dev").upper()
 
 
@@ -28,7 +30,7 @@ def get_cursor():
 
 print("\n" + "="*60)
 print(f"  SNOWFLAKE PERMISSION CHECKS — {ENVIRONMENT}")
-print(f"  Database: {DATABASE}")
+print(f"  SNOWFLAKE_ENV_ID: {os.environ.get('SNOWFLAKE_ENV_ID', '(not set)')}")
 print("="*60)
 
 try:
@@ -41,13 +43,28 @@ try:
         config_path = app_dir / "app_config.json"
         if not config_path.exists():
             continue
+        app_name = app_dir.name
         with open(config_path) as f:
             cfg = json.load(f)
 
-        db        = DATABASE
+        try:
+            db = expand_env_templates(cfg["database"])
+        except (KeyError, ValueError) as e:
+            errors.append(f"{app_name}: could not resolve database from app_config — {e}")
+            print(f"\n  [{app_name}]")
+            print(f"      ✗ database template — {e}")
+            continue
+
+        expected = os.environ.get("SNOWFLAKE_DB")
+        if expected and db != expected:
+            errors.append(
+                f"{app_name}: expanded database '{db}' does not match SNOWFLAKE_DB '{expected}'"
+            )
+            print(f"\n  [{app_name}]")
+            print(f"      ✗ database mismatch: {db} vs SNOWFLAKE_DB {expected}")
+            continue
         schema    = cfg["schema"]
         warehouse = cfg["query_warehouse"]
-        app_name  = app_dir.name
 
         print(f"\n  [{app_name}]")
 

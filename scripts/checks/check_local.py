@@ -2,8 +2,9 @@ import json
 from pathlib import Path
 
 REQUIRED_FILES          = ["streamlit_app.py", "app_config.json"]
+EXPECTED_DATABASE_VALUE = "${SNOWFLAKE_ENV_ID}_STREAMLIT_APP"
 COMMON_REQUIRED_KEYS    = [
-    "app_name", "schema", "stage",
+    "app_name", "database", "schema", "stage",
     "main_file", "query_warehouse", "runtime"
 ]
 CONTAINER_REQUIRED_KEYS = ["runtime_name", "compute_pool"]
@@ -34,6 +35,14 @@ def validate_local(app_dir: Path, cfg: dict, errors: list, warnings: list):
             print(f"      ✗ {key} — EMPTY")
         else:
             print(f"      ✓ {key} = {cfg[key]}")
+
+    db_val = str(cfg.get("database", "")).strip()
+    if db_val and db_val != EXPECTED_DATABASE_VALUE:
+        errors.append(
+            f"{app_name}: database must be exactly '{EXPECTED_DATABASE_VALUE}' "
+            f"(resolved at deploy time via SNOWFLAKE_ENV_ID)"
+        )
+        print(f"      ✗ database — must be '{EXPECTED_DATABASE_VALUE}'")
 
     # ── runtime value ─────────────────────────────────────────
     runtime = cfg.get("runtime", "")

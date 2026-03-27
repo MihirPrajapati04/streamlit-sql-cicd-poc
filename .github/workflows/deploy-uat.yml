@@ -60,6 +60,7 @@ jobs:
       - name: Deploy to UAT
         env:
           SNOWFLAKE_ENV:       uat
+          SNOWFLAKE_ENV_ID:    QA
           SNOWFLAKE_DB:        QA_STREAMLIT_APP
           SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}

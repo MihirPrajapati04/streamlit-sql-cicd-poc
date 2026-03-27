@@ -4,17 +4,18 @@ import sys
 import snowflake.connector
 from pathlib import Path
 
+from config_expand import expand_env_templates
+
 # ── Environment ───────────────────────────────────────────────────────────────
 ENVIRONMENT = os.environ.get("SNOWFLAKE_ENV", "dev").lower()
-DATABASE    = os.environ["SNOWFLAKE_DB"]
 VALID_ENVS  = ["dev", "uat", "prod"]
 
 if ENVIRONMENT not in VALID_ENVS:
     print(f"✗ Invalid SNOWFLAKE_ENV '{ENVIRONMENT}'. Must be one of: {VALID_ENVS}")
     sys.exit(1)
 
-print(f"\n  Environment : {ENVIRONMENT.upper()}")
-print(f"  Database    : {DATABASE}")
+print(f"\n  Environment     : {ENVIRONMENT.upper()}")
+print(f"  SNOWFLAKE_ENV_ID: {os.environ.get('SNOWFLAKE_ENV_ID', '(not set)')}")
 
 # ── Snowflake connection ──────────────────────────────────────────────────────
 conn = snowflake.connector.connect(
@@ -60,7 +61,14 @@ def deploy_app(app_dir: Path):
     with open(config_path) as f:
         cfg = json.load(f)
 
-    db        = DATABASE
+    db = expand_env_templates(cfg["database"])
+    expected = os.environ.get("SNOWFLAKE_DB")
+    if expected and db != expected:
+        print(
+            f"✗ Expanded database '{db}' from app_config does not match "
+            f"SNOWFLAKE_DB '{expected}'"
+        )
+        raise ValueError("database / SNOWFLAKE_DB mismatch")
     schema    = cfg["schema"]
     stage     = cfg["stage"]
     app_name  = cfg["app_name"]
@@ -105,15 +113,15 @@ def deploy_app(app_dir: Path):
                 FROM '{stage_ref}'
                 MAIN_FILE = '{main_file}'
                 RUNTIME_NAME = '{runtime_name}'
-                COMPUTE_POOL = {compute_pool}
-                QUERY_WAREHOUSE = {warehouse}
+                COMPUTE_POOL = "{compute_pool}"
+                QUERY_WAREHOUSE = "{warehouse}"
         """
     else:
         create_sql = f"""
             CREATE OR REPLACE STREAMLIT {db}.{schema}.{app_name}
                 FROM '{stage_ref}'
                 MAIN_FILE = '{main_file}'
-                QUERY_WAREHOUSE = {warehouse}
+                QUERY_WAREHOUSE = "{warehouse}"
         """
     run_sql(create_sql, f"CREATE OR REPLACE STREAMLIT {app_name}")
 
@@ -156,7 +164,6 @@ if __name__ == "__main__":
 
     print("\n" + "="*60)
     print(f"  Environment : {ENVIRONMENT.upper()}")
-    print(f"  Database    : {DATABASE}")
     print(f"  ✅ Deployed : {deployed}")
     print(f"  ✗  Failed  : {failed}")
     print("="*60)

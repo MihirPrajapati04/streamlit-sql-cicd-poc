@@ -1,5 +1,6 @@
 {
   "app_name": "APP_ONE",
+  "database": "${SNOWFLAKE_ENV_ID}_STREAMLIT_APP",
   "schema": "STREAMLIT_APP_POC",
   "stage": "APP_ONE_STAGE",
   "main_file": "streamlit_app.py",

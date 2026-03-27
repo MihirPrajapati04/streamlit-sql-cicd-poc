@@ -4,6 +4,9 @@ import os
 from pathlib import Path
 import snowflake.connector
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config_expand import expand_env_templates
+
 # ── Required for ALL apps regardless of runtime ──────────────────────────────
 REQUIRED_FILES = ["streamlit_app.py", "app_config.json"]
 
@@ -20,6 +23,7 @@ COMMON_REQUIRED_KEYS = [
 CONTAINER_REQUIRED_KEYS = ["runtime_name", "compute_pool"]
 VALID_RUNTIMES           = ["warehouse", "container"]
 VALID_RUNTIME_NAMES      = ["SYSTEM$ST_CONTAINER_RUNTIME_PY3_11"]
+EXPECTED_DATABASE_VALUE  = "${SNOWFLAKE_ENV_ID}_STREAMLIT_APP"
 
 
 # ── Snowflake connection ──────────────────────────────────────────────────────
@@ -294,6 +298,14 @@ def validate_local(app_dir: Path, cfg: dict, errors: list, warnings: list):
         else:
             print(f"      ✓ {key} = {cfg[key]}")
 
+    db_val = str(cfg.get("database", "")).strip()
+    if db_val and db_val != EXPECTED_DATABASE_VALUE:
+        errors.append(
+            f"{app_name}: database must be exactly '{EXPECTED_DATABASE_VALUE}' "
+            f"(resolved at deploy time via SNOWFLAKE_ENV_ID)"
+        )
+        print(f"      ✗ database — must be '{EXPECTED_DATABASE_VALUE}'")
+
     # ── runtime value ─────────────────────────────────────────
     runtime = cfg.get("runtime", "")
     if runtime not in VALID_RUNTIMES:
@@ -426,7 +438,23 @@ if __name__ == "__main__":
         print("\n  ✓ Connected to Snowflake successfully")
 
         for app_name, cfg in valid_configs.items():
-            db        = cfg["database"]
+            try:
+                db = expand_env_templates(cfg["database"])
+            except KeyError as e:
+                errors.append(f"{app_name}: could not resolve database — {e}")
+                print(f"\n  [{app_name}]")
+                print(f"      ✗ database — {e}")
+                continue
+
+            expected = os.environ.get("SNOWFLAKE_DB")
+            if expected and db != expected:
+                errors.append(
+                    f"{app_name}: expanded database '{db}' does not match SNOWFLAKE_DB '{expected}'"
+                )
+                print(f"\n  [{app_name}]")
+                print(f"      ✗ database mismatch: {db} vs SNOWFLAKE_DB {expected}")
+                continue
+
             schema    = cfg["schema"]
             stage     = cfg["stage"]
             warehouse = cfg["query_warehouse"]
