@@ -1,14 +1,9 @@
 name: Deploy to PROD
 
 on:
-  pull_request:
-    branches:
-      - master
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+  push:
+    tags:
+      - 'v*.*.*'
 
   workflow_dispatch:
     inputs:
@@ -24,40 +19,32 @@ env:
   PYTHON_VERSION: '3.12'
 
 jobs:
-  detect:
-    if: github.event_name == 'pull_request'
+  verify-master-tag:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    outputs:
-      apps_to_deploy: ${{ steps.detect.outputs.apps_to_deploy }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-tags: true
 
-      - name: Detect changed apps from PR
-        id: detect
+      - name: Ensure tag commit is on master
         run: |
-          CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" \
-            | grep '^apps/' \
-            | awk -F'/' '{print $2}' \
-            | sort -u \
-            | tr '\n' ' ' \
-            | xargs)
-          if [ -z "$CHANGED" ]; then
-            echo "No changed app folders detected under apps/."
+          TAG_SHA="${{ github.sha }}"
+          git fetch origin master --depth=1
+          if ! git merge-base --is-ancestor "$TAG_SHA" origin/master; then
+            echo "Tag ${{ github.ref_name }} points to $TAG_SHA, which is not on origin/master."
+            echo "Create release tags only from master commits."
             exit 1
           fi
-          echo "apps_to_deploy=$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "Tag ${{ github.ref_name }} is valid and on master."
 
-  deploy-prod-pr:
-    if: github.event_name == 'pull_request'
-    needs: detect
+  deploy-prod-tag:
+    if: github.event_name == 'push'
+    needs: verify-master-tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -69,7 +56,7 @@ jobs:
           pip install --upgrade pip
           pip install snowflake-connector-python
 
-      - name: Deploy to PROD (PR)
+      - name: Deploy to PROD (tag)
         env:
           SNOWFLAKE_ENV:       prod
           SNOWFLAKE_ENV_ID:    PROD
@@ -79,9 +66,8 @@ jobs:
           SNOWFLAKE_ROLE:      ${{ secrets.SNOWFLAKE_ROLE }}
           SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
         run: |
-          APPS="${{ needs.detect.outputs.apps_to_deploy }}"
-          echo "Deploying apps to PROD from PR: $APPS"
-          python scripts/deploy.py $APPS
+          echo "Deploying to PROD from tag: ${{ github.ref_name }}"
+          python scripts/deploy.py
 
   deploy-prod-manual:
     if: github.event_name == 'workflow_dispatch'
