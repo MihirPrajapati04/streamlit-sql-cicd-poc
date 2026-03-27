@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os 
 
 st.title("App One — Native Snowflake Connection Test")
 
@@ -8,6 +9,7 @@ conn = st.connection("snowflake")
 
 st.subheader("Raw Table Data")
 
+st.write(f"SNOWFLAKE_ENV_ID: {os.environ['SNOWFLAKE_ENV_ID']}")
 df = conn.query(
     "SELECT * FROM STREAMLIT_APP.STREAMLIT_APP_POC.TEST_EMPLOYEES"
 )
