@@ -3,6 +3,7 @@ import pandas as pd
 import os 
 
 st.title("App One — Native Snowflake Connection Test")
+st.write(f"SNOWFLAKE_ENV_ID: {os.environ['SNOWFLAKE_ENV_ID']}")
 
 # ── Native connection — no credentials needed ──────────────────
 conn = st.connection("snowflake")
