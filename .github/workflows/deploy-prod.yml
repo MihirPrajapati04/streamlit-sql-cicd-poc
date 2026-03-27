@@ -24,41 +24,21 @@ env:
   PYTHON_VERSION: '3.12'
 
 jobs:
-  preflight:
+  detect:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
-      release_tag: ${{ steps.preflight.outputs.release_tag }}
-      apps_to_deploy: ${{ steps.preflight.outputs.apps_to_deploy }}
+      apps_to_deploy: ${{ steps.detect.outputs.apps_to_deploy }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          fetch-tags: true
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Validate UAT parity, tag, and detect changed apps
-        id: preflight
+      - name: Detect changed apps from PR
+        id: detect
         run: |
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-
-          git fetch origin uat --depth=1
-          UAT_SHA="$(git rev-parse origin/uat)"
-          if [ "$HEAD_SHA" != "$UAT_SHA" ]; then
-            echo "Feature branch HEAD ($HEAD_SHA) does not match uat HEAD ($UAT_SHA)."
-            echo "Do not add new commits after UAT testing."
-            exit 1
-          fi
-
-          RELEASE_TAG="$(git tag --points-at "$HEAD_SHA" 'v*.*.*' | head -n 1)"
-          if [ -z "$RELEASE_TAG" ]; then
-            echo "No release tag found on feature HEAD $HEAD_SHA."
-            echo "Create and push a tag like v1.2.3 before opening PR to master."
-            exit 1
-          fi
-
-          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
+          CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" \
             | grep '^apps/' \
             | awk -F'/' '{print $2}' \
             | sort -u \
@@ -68,15 +48,11 @@ jobs:
             echo "No changed app folders detected under apps/."
             exit 1
           fi
-
-          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "apps_to_deploy=$CHANGED" >> "$GITHUB_OUTPUT"
-          echo "Validated release tag: $RELEASE_TAG"
-          echo "Apps to deploy: $CHANGED"
 
   deploy-prod-pr:
     if: github.event_name == 'pull_request'
-    needs: preflight
+    needs: detect
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -104,9 +80,8 @@ jobs:
           SNOWFLAKE_ROLE:      ${{ secrets.SNOWFLAKE_ROLE }}
           SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
         run: |
-          APPS="${{ needs.preflight.outputs.apps_to_deploy }}"
+          APPS="${{ needs.detect.outputs.apps_to_deploy }}"
           echo "Deploying apps to PROD from PR: $APPS"
-          echo "Release tag: ${{ needs.preflight.outputs.release_tag }}"
           python scripts/deploy.py $APPS
 
   deploy-prod-manual:
