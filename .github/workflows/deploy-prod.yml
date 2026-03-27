@@ -1,9 +1,14 @@
 name: Deploy to PROD
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  pull_request:
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
   workflow_dispatch:
     inputs:
@@ -11,15 +16,81 @@ on:
         description: 'App folder names to deploy (blank = all)'
         required: false
         default: ''
+      release_tag:
+        description: 'Release tag to deploy (required, example: v1.2.3)'
+        required: true
 
 env:
   PYTHON_VERSION: '3.12'
 
 jobs:
-  deploy-prod:
+  preflight:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.preflight.outputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Validate tag and UAT sync
+        id: preflight
+        run: |
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          git fetch origin uat --depth=1
+          UAT_SHA="$(git rev-parse origin/uat)"
+          if [ "$HEAD_SHA" != "$UAT_SHA" ]; then
+            echo "Feature branch HEAD ($HEAD_SHA) does not match uat HEAD ($UAT_SHA)."
+            echo "This means new commits were added after UAT testing. Please sync with uat."
+            exit 1
+          fi
+
+          RELEASE_TAG="$(git tag --points-at "$HEAD_SHA" 'v*.*.*' | head -n 1)"
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "No version tag found on HEAD commit $HEAD_SHA."
+            echo "Create and push a tag like v1.2.3 on the feature commit before opening PR to master."
+            exit 1
+          fi
+
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "Validated release tag: $RELEASE_TAG"
+
+  detect:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      apps_to_deploy: ${{ steps.detect.outputs.apps_to_deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Detect changed apps from PR
+        id: detect
+        run: |
+          CHANGED=$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" \
+            | grep '^apps/' \
+            | awk -F'/' '{print $2}' \
+            | sort -u \
+            | tr '\n' ' ' \
+            | xargs)
+          echo "apps_to_deploy=$CHANGED" >> "$GITHUB_OUTPUT"
+
+  deploy-prod-pr:
+    runs-on: ubuntu-latest
+    needs:
+      - preflight
+      - detect
+    if: github.event_name == 'pull_request' && needs.detect.outputs.apps_to_deploy != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,10 +102,59 @@ jobs:
           pip install --upgrade pip
           pip install snowflake-connector-python
 
-      - name: Deploy to PROD
+      - name: Deploy to PROD (PR)
         env:
           SNOWFLAKE_ENV:       prod
           SNOWFLAKE_ENV_ID:    PROD
+          SNOWFLAKE_DB:        PROD_STREAMLIT_APP
+          SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD:  ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ROLE:      ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+        run: |
+          APPS="${{ needs.detect.outputs.apps_to_deploy }}"
+          echo "Deploying apps to PROD from PR: $APPS"
+          echo "Release tag: ${{ needs.preflight.outputs.release_tag }}"
+          python scripts/deploy.py $APPS
+
+  deploy-prod-manual:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        run: |
+          RELEASE_TAG="${{ github.event.inputs.release_tag }}"
+          if ! echo "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "release_tag must match v<major>.<minor>.<patch>."
+            exit 1
+          fi
+          git fetch --tags
+          if ! git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag '$RELEASE_TAG' does not exist in remote history."
+            exit 1
+          fi
+          echo "Validated release tag: $RELEASE_TAG"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install snowflake-connector-python
+
+      - name: Deploy to PROD (manual)
+        env:
+          SNOWFLAKE_ENV:       prod
+          SNOWFLAKE_ENV_ID:    PROD
+          SNOWFLAKE_DB:        PROD_STREAMLIT_APP
           SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD:  ${{ secrets.SNOWFLAKE_PASSWORD }}
@@ -43,9 +163,11 @@ jobs:
         run: |
           APPS="${{ github.event.inputs.apps }}"
           if [ -z "$APPS" ]; then
-            echo "Deploying ALL apps to PROD — tag: ${{ github.ref_name }}"
+            echo "Deploying ALL apps to PROD (manual dispatch)"
+            echo "Release tag: ${{ github.event.inputs.release_tag }}"
             python scripts/deploy.py
           else
-            echo "Deploying apps to PROD: $APPS"
+            echo "Deploying apps to PROD (manual dispatch): $APPS"
+            echo "Release tag: ${{ github.event.inputs.release_tag }}"
             python scripts/deploy.py $APPS
           fi

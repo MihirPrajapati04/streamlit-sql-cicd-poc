@@ -1,9 +1,10 @@
 import streamlit as st
 from faker import Faker
+import os 
 
 fake = Faker()
 
-st.title("App Two — pyproject.toml Test")
+st.title("App One — pyproject.toml Test")
 st.write(f"SNOWFLAKE_ENV_ID: {os.environ['SNOWFLAKE_ENV_ID']}")
 st.write("This app uses the wrhs runtime. ")
 st.write("It has a pyproject.toml file for dependencies, but no environment.yml.")
