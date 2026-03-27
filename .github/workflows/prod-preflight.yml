@@ -1,0 +1,43 @@
+name: PROD Preflight
+
+on:
+  pull_request:
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+jobs:
+  prod-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Validate UAT parity and release tag
+        run: |
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          git fetch origin uat --depth=1
+          UAT_SHA="$(git rev-parse origin/uat)"
+          if [ "$HEAD_SHA" != "$UAT_SHA" ]; then
+            echo "Feature HEAD ($HEAD_SHA) does not match uat HEAD ($UAT_SHA)."
+            echo "No commits are allowed after UAT testing."
+            exit 1
+          fi
+
+          RELEASE_TAG="$(git tag --points-at "$HEAD_SHA" 'v*.*.*' | head -n 1)"
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "No release tag found on HEAD commit $HEAD_SHA."
+            echo "Create and push a tag like v1.2.3 on feature branch before PR to master."
+            exit 1
+          fi
+
+          echo "Validated release tag: $RELEASE_TAG"
+          echo "UAT parity check passed."
