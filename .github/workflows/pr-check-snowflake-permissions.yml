@@ -29,7 +29,6 @@ jobs:
         env:
           SNOWFLAKE_ENV:       dev
           SNOWFLAKE_ENV_ID:    DEV
-          SNOWFLAKE_DB:        DEV_STREAMLIT_APP
           SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD:  ${{ secrets.SNOWFLAKE_PASSWORD }}
