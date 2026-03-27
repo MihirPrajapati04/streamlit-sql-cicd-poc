@@ -27,6 +27,9 @@ conn = snowflake.connector.connect(
 )
 cursor = conn.cursor()
 
+# ── Viewer role ───────────────────────────────────────────────────────────────
+viewer_role = "PUBLIC"
+
 
 def run_sql(sql: str, description: str = ""):
     print(f"\n▶ {description or sql[:80]}")
@@ -90,11 +93,11 @@ def deploy_app(app_dir: Path):
         f"Ensure stage {stage}"
     )
 
-    # 2. Grant stage access
-    run_sql(
-        f"GRANT READ, WRITE ON STAGE {db}.{schema}.{stage} TO ROLE {os.environ['SNOWFLAKE_ROLE']}",
-        f"Grant READ, WRITE on stage {stage}"
-    )
+    # # 2. Grant stage access
+    # run_sql(
+    #     f"GRANT READ, WRITE ON STAGE {db}.{schema}.{stage} TO ROLE {os.environ['SNOWFLAKE_ROLE']}",
+    #     f"Grant READ, WRITE on stage {stage}"
+    # )
 
     # 3. Upload app files
     app_files = [
@@ -132,11 +135,19 @@ def deploy_app(app_dir: Path):
     )
 
     # 6. Grant usage to end users
-    viewer_role = cfg.get("viewer_role", "PUBLIC")
+    # viewer_role = cfg.get("viewer_role", "PUBLIC")
     run_sql(
-        f"GRANT USAGE ON STREAMLIT {db}.{schema}.{app_name} TO ROLE {viewer_role}",
-        f"Grant USAGE on {app_name} to {viewer_role}"
+        f"GRANT USAGE ON STREAMLIT {db}.{schema}.{app_name} TO ROLE PUBLIC",
+        f"Grant USAGE on {app_name} to PUBLIC"
     )
+
+    # GRANT STAGE READ ACCESS TO THE VIEWER ROLE 
+    run_sql(
+        f"GRANT READ ON STAGE {db}.{schema}.{stage} TO ROLE {viewer_role}",
+        f"Grant READ on stage {stage} to {viewer_role}"
+    )
+
+
 
     print(f"\n  ✅ {app_name} deployed to {ENVIRONMENT.upper()} successfully!\n")
 
