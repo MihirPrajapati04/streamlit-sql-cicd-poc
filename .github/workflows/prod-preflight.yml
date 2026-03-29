@@ -1,4 +1,4 @@
-name: Check UAT Merge
+name: Verify UAT Merge Checks
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ on:
       - ready_for_review
 
 jobs:
-  check-uat-merge:
+  verify-uat-merge-checks:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head

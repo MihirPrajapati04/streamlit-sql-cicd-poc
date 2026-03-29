@@ -1,4 +1,4 @@
-name: Code Quality
+name: Flake8 Error Check
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ env:
   PYTHON_VERSION: '3.12'
 
 jobs:
-  code-quality:
+  flake8-errror-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
