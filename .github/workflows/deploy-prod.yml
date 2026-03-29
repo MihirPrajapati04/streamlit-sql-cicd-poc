@@ -39,9 +39,48 @@ jobs:
           fi
           echo "Tag ${{ github.ref_name }} is valid and on master."
 
-  deploy-prod-tag:
+  detect-prod-apps:
     if: github.event_name == 'push'
     needs: verify-master-tag
+    runs-on: ubuntu-latest
+    outputs:
+      apps_to_deploy: ${{ steps.detect.outputs.apps_to_deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ github.sha }}
+
+      - name: Detect changed apps since previous release tag
+        id: detect
+        run: |
+          TAG_SHA="${{ github.sha }}"
+          PREV=$(git describe --tags --abbrev=0 --match='v*.*.*' "${TAG_SHA}^" 2>/dev/null || true)
+          if [ -z "$PREV" ]; then
+            echo "No previous v*.*.* tag found; deploying all app folders under apps/."
+            CHANGED=$(find apps -mindepth 1 -maxdepth 1 -type d ! -name '.*' -exec basename {} \; | sort -u | tr '\n' ' ' | xargs)
+          else
+            echo "Comparing $PREV..$TAG_SHA for changes under apps/"
+            CHANGED=$(git diff --name-only "$PREV" "$TAG_SHA" \
+              | grep '^apps/' \
+              | awk -F'/' '{print $2}' \
+              | sort -u \
+              | tr '\n' ' ' \
+              | xargs)
+          fi
+          if [ -z "$CHANGED" ]; then
+            echo "No app folder changes in this release; nothing to deploy to PROD."
+            exit 1
+          fi
+          echo "apps_to_deploy=$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "Apps to deploy: $CHANGED"
+
+  deploy-prod-tag:
+    if: github.event_name == 'push'
+    needs:
+      - verify-master-tag
+      - detect-prod-apps
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,7 +106,9 @@ jobs:
           SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
         run: |
           echo "Deploying to PROD from tag: ${{ github.ref_name }}"
-          python scripts/deploy.py
+          APPS="${{ needs.detect-prod-apps.outputs.apps_to_deploy }}"
+          echo "Deploying apps: $APPS"
+          python scripts/deploy.py $APPS
 
   deploy-prod-manual:
     if: github.event_name == 'workflow_dispatch'
