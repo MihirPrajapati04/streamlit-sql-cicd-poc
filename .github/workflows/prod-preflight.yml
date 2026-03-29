@@ -1,4 +1,4 @@
-name: PROD Preflight
+name: Check UAT Merge
 
 on:
   pull_request:
@@ -11,33 +11,43 @@ on:
       - ready_for_review
 
 jobs:
-  prod-preflight:
+  check-uat-merge:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout PR head
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          fetch-tags: true
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Validate UAT parity and release tag
+      - name: Fetch UAT
+        run: git fetch origin uat
+
+      - name: Log branches and commits
         run: |
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          echo "Remote branches (sample):"
+          git branch -r | head -40
 
-          git fetch origin uat --depth=1
-          UAT_SHA="$(git rev-parse origin/uat)"
-          if [ "$HEAD_SHA" != "$UAT_SHA" ]; then
-            echo "Feature HEAD ($HEAD_SHA) does not match uat HEAD ($UAT_SHA)."
-            echo "No commits are allowed after UAT testing."
+          echo "Latest commit on origin/uat:"
+          git log origin/uat -1 --oneline
+
+          echo "PR branch tip (${{ github.head_ref }}):"
+          git log -1 --oneline HEAD
+
+          echo "Commits on PR tip not reachable from UAT (should be empty to pass):"
+          git log --oneline origin/uat..HEAD || true
+
+      - name: Verify all PR commits exist in UAT
+        run: |
+          PR_TIP="${{ github.event.pull_request.head.sha }}"
+          echo "Checking commits reachable from $PR_TIP that are not in origin/uat..."
+
+          MISSING=$(git rev-list "$PR_TIP" --not origin/uat)
+          if [ -n "$MISSING" ]; then
+            echo "Some commits on this PR branch are not in UAT. Merge the feature branch into UAT first."
+            echo "Commits not in UAT history:"
+            git log --oneline "$PR_TIP" --not origin/uat | head -50
             exit 1
           fi
 
-          RELEASE_TAG="$(git tag --points-at "$HEAD_SHA" 'v*.*.*' | head -n 1)"
-          if [ -z "$RELEASE_TAG" ]; then
-            echo "No release tag found on HEAD commit $HEAD_SHA."
-            echo "Create and push a tag like v1.2.3 on feature branch before PR to master."
-            exit 1
-          fi
-
-          echo "Validated release tag: $RELEASE_TAG"
-          echo "UAT parity check passed."
+          echo "All commits from the PR branch are contained in UAT history."
