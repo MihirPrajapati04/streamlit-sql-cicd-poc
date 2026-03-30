@@ -7,6 +7,7 @@ fake = Faker()
 st.title("App One — pyproject.toml Test")
 st.write(f"SNOWFLAKE_ENV_ID: {os.environ['SNOWFLAKE_ENV_ID']}")
 st.write(f"SNOWFLAKE_ENV: {os.environ['SNOWFLAKE_ENV']}")
+st.write(f"SNOWFLAKE_ACCOUNT: {os.environ['SNOWFLAKE_ACCOUNT']}")
 
 
 
