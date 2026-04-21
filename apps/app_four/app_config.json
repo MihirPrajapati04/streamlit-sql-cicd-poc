@@ -1,0 +1,9 @@
+{
+    "app_name": "APP_FOUR",
+    "database": "${SNOWFLAKE_ENV_ID}_STREAMLIT_APP",
+    "schema": "STREAMLIT_APP_POC",
+    "stage": "APP_FOUR_STAGE",
+    "main_file": "streamlit_app.py",
+    "query_warehouse": "COMPUTE_WH",
+    "runtime": "warehouse"
+  }

@@ -19,6 +19,7 @@ env:
 jobs:
   detect:
     runs-on: ubuntu-latest
+    name: detect (target=${{ github.base_ref }})
     if: github.base_ref == 'uat' || github.event_name == 'workflow_dispatch'
     outputs:
       apps_to_deploy: ${{ steps.detect.outputs.apps_to_deploy }}

@@ -146,7 +146,6 @@ jobs:
         env:
           SNOWFLAKE_ENV:       prod
           SNOWFLAKE_ENV_ID:    PROD
-          SNOWFLAKE_DB:        PROD_STREAMLIT_APP
           SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD:  ${{ secrets.SNOWFLAKE_PASSWORD }}
